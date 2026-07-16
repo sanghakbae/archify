@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import ChatPanel from './components/ChatPanel'
 import DiagramView, { type DiagramLook } from './components/DiagramView'
 import SettingsDialog, { type Settings } from './components/SettingsDialog'
+import AuthButton from './components/AuthButton'
+import MyDiagramsDialog from './components/MyDiagramsDialog'
+import { useAuth } from './lib/useAuth'
+import { saveDiagram, type SavedDiagram } from './lib/diagrams'
 import { parseMessage } from './lib/parser'
 import { generateWithLlm, type Provider } from './lib/llm'
 import { toMermaid } from './lib/diagram'
@@ -39,16 +43,17 @@ interface PersistedState {
   messages: ChatMessage[]
   look?: DiagramLook
   rawCode?: string | null
+  currentDocId?: string | null
 }
 
 const WELCOME: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
   text:
-    "Hi! I'm **Archify**. Describe your system in plain language and I'll draw the architecture.\n" +
-    'Try “a React frontend talking to a Node API with a Postgres database”, or use commands like ' +
-    '`connect X to Y`, `remove the cache`, `layout left to right`, or `clear`.\n' +
-    'You can also switch to **Mermaid code** mode above to paste your own diagram.',
+    '안녕하세요! 저는 **Archify**예요. 시스템을 자연어로 설명해 주시면 아키텍처를 그려 드릴게요.\n' +
+    '예를 들어 “React 프론트엔드가 Node API와 통신하고 Postgres 데이터베이스를 쓰는 구조”처럼 말해 보세요. ' +
+    '`X를 Y에 연결`, `캐시 삭제`, `레이아웃 좌우로`, `초기화` 같은 명령도 쓸 수 있어요.\n' +
+    '위의 **Mermaid 코드** 모드로 전환하면 직접 작성한 다이어그램을 붙여넣을 수도 있어요.',
   ts: 0,
 }
 
@@ -80,10 +85,14 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [settings, setSettings] = useState<Settings>(loadSettings)
   const [showSettings, setShowSettings] = useState(false)
+  const auth = useAuth()
+  const [showDiagrams, setShowDiagrams] = useState(false)
+  const [currentDocId, setCurrentDocId] = useState<string | null>(initial.currentDocId ?? null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ diagram, messages, look, rawCode }))
-  }, [diagram, messages, look, rawCode])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ diagram, messages, look, rawCode, currentDocId }))
+  }, [diagram, messages, look, rawCode, currentDocId])
 
   const addMessage = (role: ChatMessage['role'], text: string) =>
     setMessages((prev) => [...prev, { id: newId(), role, text, ts: Date.now() }])
@@ -116,9 +125,9 @@ export default function App() {
     } catch (err: any) {
       addMessage(
         'assistant',
-        `⚠️ ${settings.useLlm ? `${settings.provider === 'openai' ? 'OpenAI' : 'Claude'} request failed` : 'Something went wrong'}: ${
+        `⚠️ ${settings.useLlm ? `${settings.provider === 'openai' ? 'OpenAI' : 'Claude'} 요청 실패` : '문제가 발생했어요'}: ${
           err?.message ?? err
-        }\n\nFalling back to the built-in parser for this message.`,
+        }\n\n이 메시지는 내장 파서로 대신 처리할게요.`,
       )
       try {
         const result = parseMessage(text, diagram)
@@ -133,16 +142,47 @@ export default function App() {
   const handleRenderMermaid = (code: string) => setRawCode(code)
 
   const resetAll = () => {
-    if (!confirm('Clear the diagram and chat history?')) return
+    if (!confirm('다이어그램과 채팅 기록을 모두 지울까요?')) return
     setDiagram(emptyDiagram())
     setMessages([WELCOME])
     setRawCode(null)
+    setCurrentDocId(null)
+  }
+
+  const handleSave = async () => {
+    if (!auth.user || saveState === 'saving') return
+    setSaveState('saving')
+    try {
+      const name = (rawCode !== null ? '붙여넣은 Mermaid' : diagram.title) || '제목 없는 아키텍처'
+      const id = await saveDiagram(
+        auth.user.uid,
+        name,
+        { diagram, messages, look, rawCode },
+        currentDocId ?? undefined,
+      )
+      setCurrentDocId(id)
+      setSaveState('saved')
+      setTimeout(() => setSaveState('idle'), 1600)
+    } catch (err) {
+      console.error('Failed to save diagram', err)
+      setSaveState('error')
+      setTimeout(() => setSaveState('idle'), 2400)
+    }
+  }
+
+  const handleLoadSaved = (saved: SavedDiagram) => {
+    setDiagram(saved.diagram)
+    setMessages(saved.messages.length > 0 ? saved.messages : [WELCOME])
+    setLook(saved.look)
+    setRawCode(saved.rawCode)
+    setCurrentDocId(saved.id)
+    setShowDiagrams(false)
   }
 
   // What the canvas renders: pasted Mermaid code takes precedence over the model.
   const isRaw = rawCode !== null
   const code = isRaw ? (rawCode as string) : toMermaid(diagram)
-  const title = isRaw ? 'Pasted Mermaid' : diagram.title
+  const title = isRaw ? '붙여넣은 Mermaid' : diagram.title
   const nodeCount = isRaw ? 0 : diagram.nodes.length
   const edgeCount = isRaw ? 0 : diagram.edges.length
   const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Claude'
@@ -154,15 +194,30 @@ export default function App() {
           <span className="brand__logo">🧩</span>
           <div>
             <h1>Archify</h1>
-            <p>Chat your way to an architecture diagram</p>
+            <p>대화로 완성하는 아키텍처 다이어그램</p>
           </div>
         </div>
         <div className="topbar__actions">
           <span className={`mode ${aiActive ? 'mode--ai' : 'mode--local'}`}>
-            {aiActive ? `✨ ${providerLabel} AI` : '⚡ Local parser'}
+            {aiActive ? `✨ ${providerLabel} AI` : '⚡ 로컬 파서'}
           </span>
-          <button onClick={() => setShowSettings(true)}>Settings</button>
-          <button onClick={resetAll}>Reset</button>
+          {auth.user && (
+            <>
+              <button onClick={handleSave} disabled={saveState === 'saving'}>
+                {saveState === 'saving'
+                  ? '저장 중…'
+                  : saveState === 'saved'
+                    ? '저장됨 ✓'
+                    : saveState === 'error'
+                      ? '저장 실패'
+                      : '💾 저장'}
+              </button>
+              <button onClick={() => setShowDiagrams(true)}>📂 내 다이어그램</button>
+            </>
+          )}
+          <button onClick={() => setShowSettings(true)}>설정</button>
+          <button onClick={resetAll}>초기화</button>
+          <AuthButton auth={auth} />
         </div>
       </header>
 
@@ -182,6 +237,15 @@ export default function App() {
           onLookChange={setLook}
         />
       </main>
+
+      {showDiagrams && auth.user && (
+        <MyDiagramsDialog
+          uid={auth.user.uid}
+          currentDocId={currentDocId}
+          onLoad={handleLoadSaved}
+          onClose={() => setShowDiagrams(false)}
+        />
+      )}
 
       {showSettings && (
         <SettingsDialog
