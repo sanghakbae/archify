@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import mermaid from 'mermaid'
-import type { Diagram } from '../types'
-import { toMermaid } from '../lib/diagram'
 
 mermaid.initialize({
   startOnLoad: false,
@@ -16,24 +14,52 @@ mermaid.initialize({
   },
 })
 
+export type DiagramLook = 'clean' | 'sketch'
+
 interface Props {
-  diagram: Diagram
+  code: string
+  title: string
+  nodeCount: number
+  edgeCount: number
+  look: DiagramLook
+  onLookChange: (look: DiagramLook) => void
 }
 
 let renderSeq = 0
 
-export default function DiagramView({ diagram }: Props) {
+/**
+ * Prepend a Mermaid init directive so we can switch the rendering "look"
+ * (classic vs hand-drawn) per render without re-initializing globally.
+ * Skipped when the code already carries its own init directive.
+ */
+function withLook(code: string, look: DiagramLook): string {
+  if (code.includes('%%{init')) return code
+  const cfg = {
+    look: look === 'sketch' ? 'handDrawn' : 'classic',
+    handDrawnSeed: 1,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      fontSize: '15px',
+      lineColor: look === 'sketch' ? '#64748b' : '#94a3b8',
+    },
+  }
+  return `%%{init: ${JSON.stringify(cfg)}}%%\n${code}`
+}
+
+export default function DiagramView({ code, title, nodeCount, edgeCount, look, onLookChange }: Props) {
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
-  const code = toMermaid(diagram)
+  const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const finalCode = withLook(code, look)
 
   useEffect(() => {
     let cancelled = false
     const id = `archify-svg-${renderSeq++}`
     mermaid
-      .render(id, code)
+      .render(id, finalCode)
       .then(({ svg }) => {
         if (!cancelled) {
           setSvg(svg)
@@ -46,12 +72,12 @@ export default function DiagramView({ diagram }: Props) {
     return () => {
       cancelled = true
     }
-  }, [code])
+  }, [finalCode])
 
   const download = (type: 'svg' | 'png') => {
     if (!svg) return
     if (type === 'svg') {
-      triggerDownload(new Blob([svg], { type: 'image/svg+xml' }), `${slug(diagram.title)}.svg`)
+      triggerDownload(new Blob([svg], { type: 'image/svg+xml' }), `${slug(title)}.svg`)
       return
     }
     const img = new Image()
@@ -67,29 +93,49 @@ export default function DiagramView({ diagram }: Props) {
       ctx.scale(scale, scale)
       ctx.drawImage(img, 0, 0)
       URL.revokeObjectURL(url)
-      canvas.toBlob((blob) => blob && triggerDownload(blob, `${slug(diagram.title)}.png`))
+      canvas.toBlob((blob) => blob && triggerDownload(blob, `${slug(title)}.png`))
     }
     img.src = url
   }
 
-  const copyCode = () => navigator.clipboard?.writeText(code)
+  const copyCode = () => {
+    navigator.clipboard?.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1400)
+  }
 
   return (
     <section className="diagram">
       <header className="diagram__bar">
-        <div className="diagram__title" title={diagram.title}>
-          {diagram.title}
+        <div className="diagram__title" title={title}>
+          {title}
           <span className="diagram__meta">
-            {diagram.nodes.length} node{diagram.nodes.length !== 1 ? 's' : ''} · {diagram.edges.length} link
-            {diagram.edges.length !== 1 ? 's' : ''}
+            {nodeCount} node{nodeCount !== 1 ? 's' : ''} · {edgeCount} link{edgeCount !== 1 ? 's' : ''}
           </span>
         </div>
         <div className="diagram__actions">
+          <div className="look-toggle" role="group" aria-label="Diagram style">
+            <button
+              className={look === 'clean' ? 'is-active' : ''}
+              onClick={() => onLookChange('clean')}
+              title="Clean style"
+            >
+              ▢ Clean
+            </button>
+            <button
+              className={look === 'sketch' ? 'is-active' : ''}
+              onClick={() => onLookChange('sketch')}
+              title="Hand-drawn style"
+            >
+              ✎ Sketch
+            </button>
+          </div>
+          <span className="diagram__divider" />
           <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))} title="Zoom out">−</button>
           <button onClick={() => setZoom(1)} title="Reset zoom">{Math.round(zoom * 100)}%</button>
           <button onClick={() => setZoom((z) => Math.min(3, z + 0.15))} title="Zoom in">+</button>
           <span className="diagram__divider" />
-          <button onClick={copyCode} title="Copy Mermaid source">Copy code</button>
+          <button onClick={copyCode} title="Copy Mermaid source">{copied ? '✓ Copied' : 'Copy code'}</button>
           <button onClick={() => download('svg')} title="Download SVG">SVG</button>
           <button onClick={() => download('png')} className="btn-primary" title="Download PNG">PNG</button>
         </div>
