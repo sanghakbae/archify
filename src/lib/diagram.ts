@@ -35,7 +35,7 @@ export function toMermaid(diagram: Diagram): string {
   lines.push(`flowchart ${diagram.direction}`)
 
   if (diagram.nodes.length === 0) {
-    lines.push('  empty["Start describing your system in the chat →"]')
+    lines.push('  empty["채팅에서 시스템을 설명해 주세요 →"]')
     lines.push('  style empty fill:#f8fafc,stroke:#cbd5e1,stroke-dasharray: 5 5,color:#64748b')
     return lines.join('\n')
   }

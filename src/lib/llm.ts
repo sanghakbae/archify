@@ -15,9 +15,11 @@ const SYSTEM_PROMPT = `You are Archify, an assistant that turns natural-language
 
 You maintain a single diagram. On every user message you return the FULL updated diagram (not a patch) plus a short, friendly reply describing what you changed.
 
+Always write the "reply" text and the diagram "title" in Korean (한국어), regardless of the language the user writes in. Keep node/edge labels in the language the user used — technical product names (React, Node, Postgres, Redis, Kafka, …) stay as-is.
+
 Respond with ONLY a JSON object, no markdown fences, matching exactly:
 {
-  "reply": "one or two short sentences describing what you did",
+  "reply": "무엇을 했는지 설명하는 한두 문장 (한국어)",
   "diagram": {
     "title": "string",
     "direction": "TB" | "LR",
@@ -154,6 +156,6 @@ export async function generateWithLlm(
   const parsed = extractJson(text)
   return {
     diagram: normalize(parsed),
-    reply: typeof parsed?.reply === 'string' ? parsed.reply : 'Updated the diagram.',
+    reply: typeof parsed?.reply === 'string' ? parsed.reply : '다이어그램을 업데이트했어요.',
   }
 }

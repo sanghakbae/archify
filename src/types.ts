@@ -45,7 +45,7 @@ export interface ChatMessage {
 }
 
 export const emptyDiagram = (): Diagram => ({
-  title: 'Untitled Architecture',
+  title: '제목 없는 아키텍처',
   direction: 'TB',
   nodes: [],
   edges: [],

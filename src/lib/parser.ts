@@ -165,8 +165,8 @@ function autoWire(d: Diagram, newIds: string[]): number {
 
 function handleClear(): ParseResult {
   return {
-    diagram: { title: 'Untitled Architecture', direction: 'TB', nodes: [], edges: [] },
-    reply: 'Cleared the canvas. Describe a new system whenever you are ready. 🧹',
+    diagram: { title: '제목 없는 아키텍처', direction: 'TB', nodes: [], edges: [] },
+    reply: '캔버스를 비웠어요. 준비되면 새 시스템을 설명해 주세요. 🧹',
     changed: true,
   }
 }
@@ -178,7 +178,7 @@ function handleDirection(d: Diagram, msg: string): ParseResult | null {
   if (!dir) return null
   const next = clone(d)
   next.direction = dir
-  return { diagram: next, reply: `Switched the layout to ${dir === 'LR' ? 'left‑to‑right' : 'top‑to‑bottom'}.`, changed: true }
+  return { diagram: next, reply: `레이아웃을 ${dir === 'LR' ? '좌우' : '상하'} 방향으로 바꿨어요.`, changed: true }
 }
 
 function handleTitle(d: Diagram, msg: string): ParseResult | null {
@@ -186,7 +186,7 @@ function handleTitle(d: Diagram, msg: string): ParseResult | null {
   if (!m) return null
   const next = clone(d)
   next.title = m[1].trim()
-  return { diagram: next, reply: `Renamed the diagram to “${next.title}”.`, changed: true }
+  return { diagram: next, reply: `다이어그램 이름을 “${next.title}”(으)로 바꿨어요.`, changed: true }
 }
 
 function handleRemove(d: Diagram, msg: string): ParseResult | null {
@@ -202,20 +202,20 @@ function handleRemove(d: Diagram, msg: string): ParseResult | null {
       removed.push(node.label)
     }
   }
-  if (removed.length === 0) return { diagram: d, reply: `I couldn't find “${m[1].trim()}” on the canvas.`, changed: false }
-  return { diagram: next, reply: `Removed ${removed.map((r) => `**${r}**`).join(', ')}.`, changed: true }
+  if (removed.length === 0) return { diagram: d, reply: `캔버스에서 “${m[1].trim()}”을(를) 찾지 못했어요.`, changed: false }
+  return { diagram: next, reply: `${removed.map((r) => `**${r}**`).join(', ')}을(를) 삭제했어요.`, changed: true }
 }
 
 function handleRename(d: Diagram, msg: string): ParseResult | null {
   const m = msg.match(/^rename\s+(.+?)\s+to\s+(.+)$/i)
   if (!m) return null
   const node = findNode(d, m[1])
-  if (!node) return { diagram: d, reply: `I couldn't find “${m[1].trim()}” to rename.`, changed: false }
+  if (!node) return { diagram: d, reply: `이름을 바꿀 “${m[1].trim()}”을(를) 찾지 못했어요.`, changed: false }
   const next = clone(d)
   const target = next.nodes.find((n) => n.id === node.id)!
   const old = target.label
   target.label = cleanLabel(m[2], target.kind)
-  return { diagram: next, reply: `Renamed **${old}** to **${target.label}**.`, changed: true }
+  return { diagram: next, reply: `**${old}**의 이름을 **${target.label}**(으)로 바꿨어요.`, changed: true }
 }
 
 function handleConnect(d: Diagram, msg: string): ParseResult | null {
@@ -258,11 +258,11 @@ function handleConnect(d: Diagram, msg: string): ParseResult | null {
     if (addEdge(next, a.id, b.id, label)) links++
   }
   if (links === 0 && created.length === 0)
-    return { diagram: d, reply: 'Those components are already connected.', changed: false }
+    return { diagram: d, reply: '이미 연결되어 있는 구성 요소예요.', changed: false }
 
-  let reply = `Connected ${parts.map((p) => `**${cleanLabel(p, 'generic')}**`).join(' → ')}`
-  reply += label ? ` with label “${label}”.` : '.'
-  if (created.length) reply += ` (Created ${created.map((c) => `**${c}**`).join(', ')} along the way.)`
+  let reply = `${parts.map((p) => `**${cleanLabel(p, 'generic')}**`).join(' → ')}을(를) 연결했어요`
+  reply += label ? ` (라벨 “${label}”).` : '.'
+  if (created.length) reply += ` (진행하면서 ${created.map((c) => `**${c}**`).join(', ')}을(를) 새로 만들었어요.)`
   return { diagram: next, reply, changed: true }
 }
 
@@ -296,10 +296,10 @@ function handleDescribe(d: Diagram, msg: string): ParseResult {
     return {
       diagram: d,
       reply:
-        "I couldn't pull any components out of that. Try things like:\n" +
-        '• “add a React frontend and a Node backend with a Postgres database”\n' +
-        '• “connect frontend to backend”\n' +
-        '• “remove the cache”',
+        '거기서 구성 요소를 찾지 못했어요. 이런 식으로 말해 보세요:\n' +
+        '• “React 프론트엔드와 Node 백엔드, Postgres 데이터베이스 추가”\n' +
+        '• “프론트엔드를 백엔드에 연결”\n' +
+        '• “캐시 삭제”',
       changed: false,
     }
   }
@@ -311,10 +311,10 @@ function handleDescribe(d: Diagram, msg: string): ParseResult {
     wired += autoWire(next, newIds)
   }
 
-  let reply = `Added ${createdLabels.length} component${createdLabels.length > 1 ? 's' : ''}:\n`
+  let reply = `구성 요소 ${createdLabels.length}개를 추가했어요:\n`
   reply += createdLabels.map((c) => `• ${c}`).join('\n')
-  if (wired > 0) reply += `\n\nAnd wired up ${wired} connection${wired > 1 ? 's' : ''}. ✨`
-  else if (newIds.length > 1) reply += '\n\nTip: say “connect X to Y” to link them.'
+  if (wired > 0) reply += `\n\n그리고 연결 ${wired}개를 이어줬어요. ✨`
+  else if (newIds.length > 1) reply += '\n\n팁: “X를 Y에 연결”이라고 말하면 서로 이어줄게요.'
   return { diagram: next, reply, changed: true }
 }
 
@@ -347,7 +347,7 @@ function wireFromText(d: Diagram, msg: string, takenIds: Set<string>): number {
  */
 export function parseMessage(message: string, diagram: Diagram): ParseResult {
   const msg = message.trim()
-  if (!msg) return { diagram, reply: 'Say something to get started!', changed: false }
+  if (!msg) return { diagram, reply: '무언가 입력하면 시작할게요!', changed: false }
 
   if (/^(clear|reset|start over|wipe|new diagram|delete everything)\b/i.test(msg)) return handleClear()
 

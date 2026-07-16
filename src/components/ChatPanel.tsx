@@ -9,17 +9,17 @@ interface Props {
 }
 
 const EXAMPLES = [
-  'A web app with a React frontend, Node backend and Postgres database',
-  'Add a Redis cache and a Kafka queue',
-  'Microservices: API gateway, auth service, orders service, payments service',
-  'Connect frontend to backend',
-  'Make the layout left to right',
+  'React 프론트엔드, Node 백엔드, Postgres 데이터베이스로 구성된 웹 앱',
+  'Redis 캐시와 Kafka 큐 추가',
+  '마이크로서비스: API 게이트웨이, 인증 서비스, 주문 서비스, 결제 서비스',
+  '프론트엔드를 백엔드에 연결',
+  '레이아웃을 좌우로 바꿔줘',
 ]
 
 const SAMPLE_MERMAID = `flowchart TB
-  user["👤 User"] --> web["🖥️ Web App"]
+  user["👤 사용자"] --> web["🖥️ 웹 앱"]
   web --> api["🔌 API"]
-  api --> db[("🗄️ Database")]
+  api --> db[("🗄️ 데이터베이스")]
   api --> cache[("⚡ Redis")]`
 
 type Mode = 'chat' | 'mermaid'
@@ -60,10 +60,10 @@ export default function ChatPanel({ messages, busy, onSend, onRenderMermaid }: P
     <section className="chat">
       <div className="mode-tabs">
         <button className={mode === 'chat' ? 'is-active' : ''} onClick={() => setMode('chat')}>
-          💬 Chat
+          💬 채팅
         </button>
         <button className={mode === 'mermaid' ? 'is-active' : ''} onClick={() => setMode('mermaid')}>
-          {'</>'} Mermaid code
+          {'</>'} Mermaid 코드
         </button>
       </div>
 
@@ -105,20 +105,20 @@ export default function ChatPanel({ messages, busy, onSend, onRenderMermaid }: P
               ref={taRef}
               value={text}
               rows={1}
-              placeholder="Describe your architecture, or type a command…"
+              placeholder="아키텍처를 설명하거나 명령을 입력하세요…"
               onChange={(e) => setText(e.target.value)}
               onKeyDown={onKeyDown}
             />
             <button className="btn-primary" onClick={submit} disabled={busy || !text.trim()}>
-              Send
+              보내기
             </button>
           </div>
         </>
       ) : (
         <div className="code-mode">
           <p className="code-mode__hint">
-            Paste any <strong>Mermaid</strong> diagram code below and render it with the styled canvas
-            (Clean or Sketch look, zoom, export).
+            아래에 <strong>Mermaid</strong> 다이어그램 코드를 붙여넣으면 스타일이 적용된 캔버스로
+            렌더링합니다 (깔끔/손그림 스타일, 확대·축소, 내보내기 지원).
           </p>
           <textarea
             className="code-mode__editor"
@@ -128,9 +128,9 @@ export default function ChatPanel({ messages, busy, onSend, onRenderMermaid }: P
             onChange={(e) => setCode(e.target.value)}
           />
           <div className="code-mode__actions">
-            <button onClick={() => setCode(SAMPLE_MERMAID)}>Insert sample</button>
+            <button onClick={() => setCode(SAMPLE_MERMAID)}>샘플 넣기</button>
             <button className="btn-primary" onClick={renderCode} disabled={!code.trim()}>
-              Render diagram
+              다이어그램 렌더링
             </button>
           </div>
         </div>

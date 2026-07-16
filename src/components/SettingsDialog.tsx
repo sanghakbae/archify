@@ -18,14 +18,14 @@ interface Props {
 
 const MODELS: Record<Provider, Array<{ id: string; label: string }>> = {
   openai: [
-    { id: 'gpt-4o-mini', label: 'GPT-4o mini (fast, cheap)' },
-    { id: 'gpt-4o', label: 'GPT-4o (most capable)' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o mini (빠르고 저렴)' },
+    { id: 'gpt-4o', label: 'GPT-4o (가장 강력)' },
     { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
   ],
   anthropic: [
-    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 (recommended)' },
-    { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 (most capable)' },
-    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
+    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 (추천)' },
+    { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 (가장 강력)' },
+    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (가장 빠름)' },
   ],
 }
 
@@ -49,10 +49,10 @@ export default function SettingsDialog({ settings, envKeys, onSave, onClose }: P
   return (
     <div className="modal" onClick={onClose}>
       <div className="modal__card" onClick={(e) => e.stopPropagation()}>
-        <h2>Settings</h2>
+        <h2>설정</h2>
         <p className="modal__lead">
-          Archify works fully offline with a built-in parser. Optionally connect an LLM for smarter,
-          free-form generation.
+          Archify는 내장 파서로 완전히 오프라인에서도 동작합니다. 더 똑똑하고 자유로운 생성을 원하면
+          LLM을 선택적으로 연결하세요.
         </p>
 
         <label className="toggle">
@@ -61,12 +61,12 @@ export default function SettingsDialog({ settings, envKeys, onSave, onClose }: P
             checked={draft.useLlm}
             onChange={(e) => setDraft({ ...draft, useLlm: e.target.checked })}
           />
-          <span>Use an AI model for generation</span>
+          <span>생성에 AI 모델 사용</span>
         </label>
 
         <fieldset disabled={!draft.useLlm} className="modal__fieldset">
           <label className="field">
-            <span>Provider</span>
+            <span>제공자</span>
             <select value={draft.provider} onChange={(e) => setProvider(e.target.value as Provider)}>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic (Claude)</option>
@@ -75,12 +75,12 @@ export default function SettingsDialog({ settings, envKeys, onSave, onClose }: P
 
           <label className="field">
             <span>
-              API key{' '}
-              {envKeyPresent && <em className="field__hint">— found in .env, leave blank to use it</em>}
+              API 키{' '}
+              {envKeyPresent && <em className="field__hint">— .env에서 찾음, 비워 두면 그 키를 사용</em>}
             </span>
             <input
               type="password"
-              placeholder={envKeyPresent ? 'Using key from .env.local' : draft.provider === 'openai' ? 'sk-…' : 'sk-ant-…'}
+              placeholder={envKeyPresent ? '.env.local의 키 사용 중' : draft.provider === 'openai' ? 'sk-…' : 'sk-ant-…'}
               value={draft.apiKey}
               onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
               autoComplete="off"
@@ -88,7 +88,7 @@ export default function SettingsDialog({ settings, envKeys, onSave, onClose }: P
           </label>
 
           <label className="field">
-            <span>Model</span>
+            <span>모델</span>
             <select value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })}>
               {MODELS[draft.provider].map((m) => (
                 <option key={m.id} value={m.id}>
@@ -99,16 +99,16 @@ export default function SettingsDialog({ settings, envKeys, onSave, onClose }: P
           </label>
 
           <p className="modal__note">
-            🔒 Keys are read from <code>.env.local</code> (git-ignored) or this field, stored only in
-            your browser, and sent directly to the provider. This is a client-side app — use a
-            personal/dev key, not a production secret.
+            🔒 키는 <code>.env.local</code>(git 추적 제외) 또는 이 입력란에서 읽어오며, 브라우저에만
+            저장되고 제공자에게 직접 전송됩니다. 이 앱은 클라이언트 사이드로 동작하니, 운영용 비밀 키가
+            아닌 개인/개발용 키를 사용하세요.
           </p>
         </fieldset>
 
         <div className="modal__actions">
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>취소</button>
           <button className="btn-primary" onClick={() => onSave(draft)}>
-            Save
+            저장
           </button>
         </div>
       </div>

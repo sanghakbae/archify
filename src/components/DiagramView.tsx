@@ -110,40 +110,40 @@ export default function DiagramView({ code, title, nodeCount, edgeCount, look, o
         <div className="diagram__title" title={title}>
           {title}
           <span className="diagram__meta">
-            {nodeCount} node{nodeCount !== 1 ? 's' : ''} · {edgeCount} link{edgeCount !== 1 ? 's' : ''}
+            노드 {nodeCount}개 · 연결 {edgeCount}개
           </span>
         </div>
         <div className="diagram__actions">
-          <div className="look-toggle" role="group" aria-label="Diagram style">
+          <div className="look-toggle" role="group" aria-label="다이어그램 스타일">
             <button
               className={look === 'clean' ? 'is-active' : ''}
               onClick={() => onLookChange('clean')}
-              title="Clean style"
+              title="깔끔한 스타일"
             >
-              ▢ Clean
+              ▢ 깔끔
             </button>
             <button
               className={look === 'sketch' ? 'is-active' : ''}
               onClick={() => onLookChange('sketch')}
-              title="Hand-drawn style"
+              title="손그림 스타일"
             >
-              ✎ Sketch
+              ✎ 손그림
             </button>
           </div>
           <span className="diagram__divider" />
-          <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))} title="Zoom out">−</button>
-          <button onClick={() => setZoom(1)} title="Reset zoom">{Math.round(zoom * 100)}%</button>
-          <button onClick={() => setZoom((z) => Math.min(3, z + 0.15))} title="Zoom in">+</button>
+          <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))} title="축소">−</button>
+          <button onClick={() => setZoom(1)} title="확대·축소 초기화">{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setZoom((z) => Math.min(3, z + 0.15))} title="확대">+</button>
           <span className="diagram__divider" />
-          <button onClick={copyCode} title="Copy Mermaid source">{copied ? '✓ Copied' : 'Copy code'}</button>
-          <button onClick={() => download('svg')} title="Download SVG">SVG</button>
-          <button onClick={() => download('png')} className="btn-primary" title="Download PNG">PNG</button>
+          <button onClick={copyCode} title="Mermaid 소스 복사">{copied ? '✓ 복사됨' : '코드 복사'}</button>
+          <button onClick={() => download('svg')} title="SVG 내려받기">SVG</button>
+          <button onClick={() => download('png')} className="btn-primary" title="PNG 내려받기">PNG</button>
         </div>
       </header>
       <div className="diagram__canvas" ref={containerRef}>
         {error ? (
           <div className="diagram__error">
-            <strong>Couldn't render this diagram.</strong>
+            <strong>이 다이어그램을 렌더링할 수 없어요.</strong>
             <pre>{error}</pre>
           </div>
         ) : (
