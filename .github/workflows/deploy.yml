@@ -2,7 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # Deploy from the repo's default branch, which is the only branch the
+    # github-pages environment allows to deploy.
+    branches: [claude/chat-architecture-diagram-builder-er83uc]
   workflow_dispatch:
 
 permissions:
