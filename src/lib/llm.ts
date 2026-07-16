@@ -1,7 +1,10 @@
 import type { Diagram, DiagramEdge, DiagramNode, NodeKind } from '../types'
 import { KIND_META } from './diagram'
 
+export type Provider = 'openai' | 'anthropic'
+
 export interface LlmConfig {
+  provider: Provider
   apiKey: string
   model: string
 }
@@ -38,6 +41,10 @@ function buildContext(diagram: Diagram): string {
     })
     .join('\n')
   return `Current diagram "${diagram.title}" (direction ${diagram.direction}):\nNodes:\n${nodes}\nEdges:\n${edges || '(none)'}`
+}
+
+function userPrompt(message: string, diagram: Diagram): string {
+  return `${buildContext(diagram)}\n\nUser request: ${message}`
 }
 
 function extractJson(text: string): any {
@@ -86,11 +93,32 @@ export interface LlmResult {
   reply: string
 }
 
-export async function generateWithLlm(
-  message: string,
-  diagram: Diagram,
-  config: LlmConfig,
-): Promise<LlmResult> {
+async function callOpenAi(message: string, diagram: Diagram, config: LlmConfig): Promise<string> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      max_tokens: 2048,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt(message, diagram) },
+      ],
+    }),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`OpenAI API error ${res.status}: ${detail.slice(0, 200)}`)
+  }
+  const data = await res.json()
+  return data?.choices?.[0]?.message?.content ?? ''
+}
+
+async function callAnthropic(message: string, diagram: Diagram, config: LlmConfig): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -103,19 +131,26 @@ export async function generateWithLlm(
       model: config.model,
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
-      messages: [
-        { role: 'user', content: `${buildContext(diagram)}\n\nUser request: ${message}` },
-      ],
+      messages: [{ role: 'user', content: userPrompt(message, diagram) }],
     }),
   })
-
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
     throw new Error(`Claude API error ${res.status}: ${detail.slice(0, 200)}`)
   }
-
   const data = await res.json()
-  const text = (data?.content ?? []).map((b: any) => b?.text ?? '').join('')
+  return (data?.content ?? []).map((b: any) => b?.text ?? '').join('')
+}
+
+export async function generateWithLlm(
+  message: string,
+  diagram: Diagram,
+  config: LlmConfig,
+): Promise<LlmResult> {
+  const text =
+    config.provider === 'anthropic'
+      ? await callAnthropic(message, diagram, config)
+      : await callOpenAi(message, diagram, config)
   const parsed = extractJson(text)
   return {
     diagram: normalize(parsed),

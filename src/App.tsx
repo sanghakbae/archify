@@ -3,12 +3,36 @@ import ChatPanel from './components/ChatPanel'
 import DiagramView, { type DiagramLook } from './components/DiagramView'
 import SettingsDialog, { type Settings } from './components/SettingsDialog'
 import { parseMessage } from './lib/parser'
-import { generateWithLlm } from './lib/llm'
+import { generateWithLlm, type Provider } from './lib/llm'
 import { toMermaid } from './lib/diagram'
 import { emptyDiagram, type ChatMessage, type Diagram } from './types'
 
 const STORAGE_KEY = 'archify.state.v1'
 const SETTINGS_KEY = 'archify.settings.v1'
+
+// Configuration coming from .env / .env.local (Vite exposes VITE_* to the browser).
+const ENV = {
+  provider: ((import.meta.env.VITE_LLM_PROVIDER as Provider) || 'openai') as Provider,
+  openaiKey: (import.meta.env.VITE_OPENAI_API_KEY ?? '').trim(),
+  openaiModel: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
+  anthropicKey: (import.meta.env.VITE_ANTHROPIC_API_KEY ?? '').trim(),
+  anthropicModel: import.meta.env.VITE_ANTHROPIC_MODEL || 'claude-sonnet-5',
+}
+const ENV_KEYS = { openai: ENV.openaiKey.length > 0, anthropic: ENV.anthropicKey.length > 0 }
+
+const envKeyFor = (p: Provider) => (p === 'openai' ? ENV.openaiKey : ENV.anthropicKey)
+const envModelFor = (p: Provider) => (p === 'openai' ? ENV.openaiModel : ENV.anthropicModel)
+
+/** Merge stored settings with env-derived defaults (and migrate the old shape). */
+function resolveSettings(stored: Partial<Settings> | null): Settings {
+  const provider = stored?.provider ?? ENV.provider
+  return {
+    useLlm: stored?.useLlm ?? (ENV_KEYS.openai || ENV_KEYS.anthropic),
+    provider,
+    apiKey: stored?.apiKey ?? '',
+    model: stored?.model || envModelFor(provider),
+  }
+}
 
 interface PersistedState {
   diagram: Diagram
@@ -42,9 +66,9 @@ function loadState(): PersistedState {
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) return resolveSettings(JSON.parse(raw))
   } catch { /* ignore */ }
-  return { useLlm: false, apiKey: '', model: 'claude-sonnet-5' }
+  return resolveSettings(null)
 }
 
 export default function App() {
@@ -64,17 +88,21 @@ export default function App() {
   const addMessage = (role: ChatMessage['role'], text: string) =>
     setMessages((prev) => [...prev, { id: newId(), role, text, ts: Date.now() }])
 
+  // Effective API key: the Settings field wins, otherwise fall back to .env.
+  const effectiveKey = settings.apiKey.trim() || envKeyFor(settings.provider)
+  const aiActive = settings.useLlm && effectiveKey.length > 0
+
   const handleSend = async (text: string) => {
     setRawCode(null) // returning to model-driven view
     addMessage('user', text)
     setBusy(true)
 
-    const useLlm = settings.useLlm && settings.apiKey.trim().length > 0
     try {
-      if (useLlm) {
+      if (aiActive) {
         const result = await generateWithLlm(text, diagram, {
-          apiKey: settings.apiKey.trim(),
-          model: settings.model,
+          provider: settings.provider,
+          apiKey: effectiveKey,
+          model: settings.model || envModelFor(settings.provider),
         })
         setDiagram(result.diagram)
         addMessage('assistant', result.reply)
@@ -88,7 +116,7 @@ export default function App() {
     } catch (err: any) {
       addMessage(
         'assistant',
-        `⚠️ ${settings.useLlm ? 'Claude API request failed' : 'Something went wrong'}: ${
+        `⚠️ ${settings.useLlm ? `${settings.provider === 'openai' ? 'OpenAI' : 'Claude'} request failed` : 'Something went wrong'}: ${
           err?.message ?? err
         }\n\nFalling back to the built-in parser for this message.`,
       )
@@ -117,6 +145,7 @@ export default function App() {
   const title = isRaw ? 'Pasted Mermaid' : diagram.title
   const nodeCount = isRaw ? 0 : diagram.nodes.length
   const edgeCount = isRaw ? 0 : diagram.edges.length
+  const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Claude'
 
   return (
     <div className="app">
@@ -129,8 +158,8 @@ export default function App() {
           </div>
         </div>
         <div className="topbar__actions">
-          <span className={`mode ${settings.useLlm && settings.apiKey ? 'mode--ai' : 'mode--local'}`}>
-            {settings.useLlm && settings.apiKey ? '✨ Claude AI' : '⚡ Local parser'}
+          <span className={`mode ${aiActive ? 'mode--ai' : 'mode--local'}`}>
+            {aiActive ? `✨ ${providerLabel} AI` : '⚡ Local parser'}
           </span>
           <button onClick={() => setShowSettings(true)}>Settings</button>
           <button onClick={resetAll}>Reset</button>
@@ -157,6 +186,7 @@ export default function App() {
       {showSettings && (
         <SettingsDialog
           settings={settings}
+          envKeys={ENV_KEYS}
           onClose={() => setShowSettings(false)}
           onSave={(s) => {
             setSettings(s)

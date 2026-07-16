@@ -11,3 +11,8 @@ yarn-error.log*
 
 # TS build info
 *.tsbuildinfo
+
+# Env files with secrets (.env.local is covered by *.local)
+.env
+.env.*
+!.env.example
